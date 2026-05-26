@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS loyalty_redemptions (
 
 -- Insert default admin user (password: admin123)
 INSERT INTO users (name, email, password, phone, address, role) VALUES
-('Admin', 'admin@vinyardburger.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '09120431891', 'Catmonan St., Poblacion, Hinunangan, Philippines, 6608', 'admin');
+('Admin', 'admin@vinyardburger.com', '$2b$10$DDIG03LHz2b4yAE6yG28K.ZN.vnMQTSSDx4ONR1bdtPmVT.18SoYm', '09120431891', 'Catmonan St., Poblacion, Hinunangan, Philippines, 6608', 'admin');
 
 -- Insert categories
 INSERT INTO categories (name, description, display_order, is_active) VALUES

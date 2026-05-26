@@ -13,6 +13,8 @@ declare global {
 export default function Login() {
   const navigate = useNavigate();
   const { login, isAuthenticated, isAdmin } = useAuth();
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const isGoogleConfigured = Boolean(googleClientId && !googleClientId.includes('your-google-client-id'));
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,17 +30,33 @@ export default function Login() {
   }, [isAuthenticated, isAdmin, navigate]);
 
   useEffect(() => {
+    if (!isGoogleConfigured) return;
+
     // Load Google Sign-In API
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
+    script.onload = () => {
+      if (!window.google) return;
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: (response: any) => handleGoogleLogin(response.credential),
+      });
+      window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-button'),
+        { theme: 'outline', size: 'large', width: '100%' }
+      );
+    };
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
-  }, []);
+  }, [isGoogleConfigured, googleClientId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,19 +96,6 @@ export default function Login() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (window.google) {
-      window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback: (response: any) => handleGoogleLogin(response.credential),
-      });
-      window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        { theme: 'outline', size: 'large', width: '100%' }
-      );
-    }
-  }, []);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
@@ -163,16 +168,20 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
-            </div>
-          </div>
+          {isGoogleConfigured && (
+            <>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                </div>
+              </div>
 
-          <div id="google-signin-button" className="w-full"></div>
+              <div id="google-signin-button" className="w-full"></div>
+            </>
+          )}
 
           <p className="text-center mt-6 text-gray-600">
             Don't have an account?{' '}

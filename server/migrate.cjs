@@ -246,6 +246,12 @@ async function ensureColumns(connection) {
 }
 
 async function seedFeatureData(connection) {
+  await connection.query(
+    `UPDATE users
+     SET password = ?
+     WHERE email = 'admin@vinyardburger.com'`,
+    ['$2b$10$DDIG03LHz2b4yAE6yG28K.ZN.vnMQTSSDx4ONR1bdtPmVT.18SoYm']
+  );
   await connection.query(`UPDATE menu_items SET cost_to_make = price * 0.4 WHERE cost_to_make = 0 OR cost_to_make IS NULL`);
   await connection.query(`
     INSERT IGNORE INTO promo_codes (code, description, discount_type, discount_value, valid_from, valid_until, max_uses)
