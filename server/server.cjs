@@ -492,10 +492,9 @@ app.put('/api/admin/orders/:id/status', authenticateToken, requireAdmin, async (
 app.get('/api/admin/customers', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const [users] = await pool.execute(
-      `SELECT id, name, email, phone, address, loyalty_points, is_online, last_login, created_at,
+      `SELECT id, name, email, phone, address, loyalty_points, is_online, last_login, created_at, role,
         (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as total_orders
        FROM users 
-       WHERE role = 'customer'
        ORDER BY created_at DESC`
     );
     
@@ -514,6 +513,24 @@ app.get('/api/admin/online-users', authenticateToken, requireAdmin, async (req, 
     );
     
     res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.put('/api/admin/users/:id/role', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (role !== 'admin' && role !== 'customer') {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+    
+    await pool.execute(
+      'UPDATE users SET role = ? WHERE id = ?',
+      [role, req.params.id]
+    );
+    
+    res.json({ message: 'User role updated successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

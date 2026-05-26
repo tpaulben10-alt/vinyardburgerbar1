@@ -104,6 +104,11 @@ export const adminAPI = {
     }),
   getCustomers: () => fetchWithAuth('/admin/customers'),
   getOnlineUsers: () => fetchWithAuth('/admin/online-users'),
+  updateUserRole: (id: number, role: string) =>
+    fetchWithAuth(`/admin/users/${id}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role })
+    }),
   getDashboardStats: () => fetchWithAuth('/admin/dashboard-stats'),
   addMenuItem: (data: any) => fetchWithAuth('/admin/menu', {
     method: 'POST',

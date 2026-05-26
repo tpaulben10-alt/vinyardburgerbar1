@@ -28,9 +28,19 @@ export default function AdminCustomers() {
     }
   };
 
+  const handleRoleChange = async (userId: number, newRole: string) => {
+    try {
+      await adminAPI.updateUserRole(userId, newRole);
+      setCustomers(customers.map(c => c.id === userId ? { ...c, role: newRole } : c));
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      alert('Failed to update user role');
+    }
+  };
+
   return (
     <div>
-      <h1 className="text-3xl font-bold text-[#1B4332] mb-6">Customer Management</h1>
+      <h1 className="text-3xl font-bold text-[#1B4332] mb-6">User Management</h1>
 
       {/* Online Users */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
@@ -63,11 +73,12 @@ export default function AdminCustomers() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Customer</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">User</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Contact</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Address</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Orders</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Points</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Role</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Status</th>
                 </tr>
               </thead>
@@ -102,6 +113,16 @@ export default function AdminCustomers() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-semibold text-[#E76F51]">{customer.loyalty_points}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={customer.role || 'customer'}
+                        onChange={(e) => handleRoleChange(customer.id, e.target.value)}
+                        className="bg-gray-50 border border-gray-300 text-[#1B4332] text-sm rounded-lg focus:ring-[#F4A261] focus:border-[#F4A261] block p-1.5 outline-none font-medium"
+                      >
+                        <option value="customer">Customer</option>
+                        <option value="admin">Admin</option>
+                      </select>
                     </td>
                     <td className="px-6 py-4">
                       {customer.is_online ? (
