@@ -27,7 +27,15 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 };
 
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
-  const response = await fetch(`${API_URL}${url}`, options);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((options.headers as Record<string, string>) || {})
+  };
+
+  const response = await fetch(`${API_URL}${url}`, {
+    ...options,
+    headers
+  });
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'An error occurred' }));
@@ -39,25 +47,22 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
 
 export const authAPI = {
   login: (email: string, password: string) => 
-    fetch(`${API_URL}/auth/login`, {
+    apiFetch('/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
-    }).then(res => res.json()),
+    }),
   
   register: (data: { name: string; email: string; password: string; phone: string; address: string }) =>
-    fetch(`${API_URL}/auth/register`, {
+    apiFetch('/auth/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
-    }).then(res => res.json()),
+    }),
   
   googleLogin: (credential: string) =>
-    fetch(`${API_URL}/auth/google`, {
+    apiFetch('/auth/google', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential })
-    }).then(res => res.json()),
+    }),
   
   logout: () => fetchWithAuth('/auth/logout', { method: 'POST' })
 };

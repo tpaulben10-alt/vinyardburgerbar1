@@ -145,6 +145,14 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
+
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ message: 'Google login is not configured' });
+    }
+
+    if (!credential) {
+      return res.status(400).json({ message: 'Google credential is required' });
+    }
     
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
@@ -152,35 +160,63 @@ app.post('/api/auth/google', async (req, res) => {
     });
     
     const payload = ticket.getPayload();
-    const { sub: googleId, email, name, picture } = payload;
-    
-    // Check if user exists
-    const [existing] = await pool.execute(
-      'SELECT * FROM users WHERE google_id = ? OR email = ?',
-      [googleId, email]
-    );
-    
-    let user;
-    if (existing.length > 0) {
-      user = existing[0];
-      // Update Google ID if not set
-      if (!user.google_id) {
-        await pool.execute('UPDATE users SET google_id = ? WHERE id = ?', [googleId, user.id]);
-      }
-    } else {
-      // Create new user
-      const [result] = await pool.execute(
-        'INSERT INTO users (google_id, name, email, phone, address, role, loyalty_points, avatar) VALUES (?, ?, ?, ?, ?, "customer", 0, ?)',
-        [googleId, name, email, '', '', picture]
-      );
-      user = { id: result.insertId, name, email, role: 'customer', loyalty_points: 0, avatar: picture };
+    const { sub: googleId, email, email_verified: emailVerified, name, picture } = payload || {};
+
+    if (!googleId || !email || !emailVerified) {
+      return res.status(401).json({ message: 'Google account email must be verified' });
     }
     
+    // Check if user exists by Google ID first, then by email for account linking.
+    const [existing] = await pool.execute(
+      `SELECT * FROM users
+       WHERE google_id = ? OR email = ?
+       ORDER BY CASE WHEN google_id = ? THEN 0 ELSE 1 END
+       LIMIT 1`,
+      [googleId, email, googleId]
+    );
+
+    const displayName = name || email.split('@')[0];
+    let user = existing[0];
+
+    if (user) {
+      if (!user.google_id) {
+        await pool.execute(
+          'UPDATE users SET google_id = ?, avatar = COALESCE(avatar, ?) WHERE id = ?',
+          [googleId, picture || null, user.id]
+        );
+        user.google_id = googleId;
+        user.avatar = user.avatar || picture || null;
+      }
+    } else {
+      const [result] = await pool.execute(
+        `INSERT INTO users
+          (google_id, name, email, password, phone, address, role, loyalty_points, avatar)
+         VALUES (?, ?, ?, NULL, '', '', 'customer', 0, ?)`,
+        [googleId, displayName, email, picture || null]
+      );
+
+      const [createdUsers] = await pool.execute(
+        'SELECT * FROM users WHERE id = ?',
+        [result.insertId]
+      );
+      user = createdUsers[0];
+    }
+
+    if (!user) {
+      return res.status(500).json({ message: 'Unable to create Google account' });
+    }
+
     // Update last login
     await pool.execute(
       'UPDATE users SET last_login = NOW(), is_online = true WHERE id = ?',
       [user.id]
     );
+
+    const [freshUsers] = await pool.execute(
+      'SELECT * FROM users WHERE id = ?',
+      [user.id]
+    );
+    user = freshUsers[0] || user;
     
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
@@ -196,12 +232,22 @@ app.post('/api/auth/google', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        phone: user.phone,
+        address: user.address,
         loyalty_points: user.loyalty_points,
         avatar: user.avatar,
         is_online: true
       }
     });
   } catch (error) {
+    if (error?.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'A user already exists with this Google account or email' });
+    }
+
+    if (error?.message?.toLowerCase().includes('token')) {
+      return res.status(401).json({ message: 'Invalid Google credential' });
+    }
+
     res.status(500).json({ message: error.message });
   }
 });
